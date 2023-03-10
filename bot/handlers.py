@@ -54,7 +54,7 @@ async def choose_difficulty(call: types.CallbackQuery, state: FSMContext, callba
     con = DB.Bot_connection()
     all_topic = con.get_data(
         difficulty=callback_data.data,
-        notices=data['notices'])
+        id=data['notices'])
     await call.message.edit_text(
         'Вот ваши темы:'
     )
@@ -62,11 +62,9 @@ async def choose_difficulty(call: types.CallbackQuery, state: FSMContext, callba
         await bot.send_message(
             chat_id=call.from_user.id,
             text=f'Имя: {topic[1]}\n'
-                 f'Номер: {topic[2]}\n'
-                 f'Всего пройдено: {topic[3]}\n'
-                 f'Темы: {topic[4]}\n'
-                 f'Сложность: {topic[5]}\n',
-            reply_markup=KB.link(topic[-1])
+                 f'Сложность: {topic[3]}\n'
+                 f'Количество задач: {len(topic[2].split("*"))}\n',
+            reply_markup=KB.more_info(topic[0])
         )
         await asyncio.sleep(1)
     await call.message.answer(
@@ -74,3 +72,28 @@ async def choose_difficulty(call: types.CallbackQuery, state: FSMContext, callba
         reply_markup=KB.back_main()
     )
     await state.clear()
+
+
+@router.callback_query(KB.Notices.filter(F.action == 'more_info'))
+async def choose_difficulty(call: types.CallbackQuery, callback_data: KB.choose_dif):
+    con = DB.Bot_connection()
+    data = con.get_collection_info(callback_data.data)
+    await call.message.edit_text(
+        'Вот ваши темы:',
+        reply_markup=KB.back_main()
+    )
+    for item in data[2].split("*"):
+        item_info = con.get_topic_info(id=item)
+        await bot.send_message(
+            chat_id=call.from_user.id,
+            text=f'Имя: {item_info[1]}\n'
+                 f'Номер задачи: {item_info[2]}\n'
+                 f'Выполнений: {item_info[3]}\n'
+                 f'Тема: {item_info[4]}\n'
+                 f'Сложность: {item_info[5]}\n',
+            reply_markup=KB.link(item_info[-2])
+        )
+    await call.message.answer(
+        'Это все темы!',
+        reply_markup=KB.back_main()
+    )
